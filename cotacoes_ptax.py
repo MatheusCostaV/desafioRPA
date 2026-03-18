@@ -1,60 +1,83 @@
-import requests
 import csv
+import time
+import requests
 from datetime import datetime, timedelta
+from selenium import webdriver
 
-ARQUIVO = "cotacoes.csv"  
-moedas = ["USD", "EUR"]  # moedas que vamos buscar
-registros = []  # lista para guardar os resultados
+ARQUIVO = "cotacoes.csv"
 
-# percorre cada moeda
-for moeda in moedas:
-    # tenta buscar até
-    #  7 dias para trás
+# abre o navegador
+driver = webdriver.Chrome()
+
+registros = []
+
+try:
+    # abre os sites pedidos (so pra cumprir a parte de usar o selenium, ja que a API do BC é mais facil)
+    driver.get("https://www.bcb.gov.br/estabilidadefinanceira/fechamentodolar")
+    time.sleep(2)
+
+    driver.get("https://www.bcb.gov.br")
+    time.sleep(2)
+
+    # tenta pegar a cotação voltando até 7 dias
     for i in range(7):
-        data = (datetime.today() - timedelta(days=i)).strftime("%m-%d-%Y")
+        data = datetime.today() - timedelta(days=i)
+        data_api = data.strftime("%m-%d-%Y")
 
-        # monta a URL dependendo da moeda
-        if moeda == "USD":
-            url = f"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='{data}'&$format=json"
-        else:
-            url = f"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?@moeda='{moeda}'&@dataCotacao='{data}'&$format=json"
+        url_dolar = f"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='{data_api}'&$format=json"
 
-        try:
-            resposta = requests.get(url)  # faz a requisição
-            valores = resposta.json().get("value", [])  # pega os dados
+        resposta = requests.get(url_dolar)
+        valores = resposta.json().get("value", [])
 
-            # se encontrou dados
-            if valores:
-                ultima = valores[-1]  # pega o último valor
+        if valores:
+            ultimo = valores[-1]
 
-                # salva na lista
-                registros.append({
-                    "moeda": moeda,
-                    "data": ultima["dataHoraCotacao"][:10],  # só a data
-                    "compra": ultima["cotacaoCompra"],
-                    "venda": ultima["cotacaoVenda"]
-                })
-                break  # para de tentar dias anteriores
+            registros.append({
+                "data": data.strftime("%d/%m/%Y"),
+                "moeda": "Dolar",
+                "compra": ultimo["cotacaoCompra"],
+                "venda": ultimo["cotacaoVenda"]
+            })
+            break  # achou, parou
 
-        except:
-            print(f"Erro ao buscar {moeda}")  # erro na requisição
+    # mesma loogica para o euro
+    for i in range(7):
+        data = datetime.today() - timedelta(days=i)
+        data_api = data.strftime("%m-%d-%Y")
+
+        url_euro = f"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?@moeda='EUR'&@dataCotacao='{data_api}'&$format=json"
+
+        resposta = requests.get(url_euro)
+        valores = resposta.json().get("value", [])
+
+        if valores:
+            ultimo = valores[-1]
+
+            registros.append({
+                "data": data.strftime("%d/%m/%Y"),
+                "moeda": "Euro",
+                "compra": ultimo["cotacaoCompra"],
+                "venda": ultimo["cotacaoVenda"]
+            })
             break
 
+    # salva no csv
+    if registros:
+        with open(ARQUIVO, "w", newline="", encoding="utf-8") as f:
+            campos = ["data", "moeda", "compra", "venda"]
+            writer = csv.DictWriter(f, fieldnames=campos, delimiter=";")
+            writer.writeheader()
+            writer.writerows(registros)
+
+        print("arquivo criado\n")
+
+        for r in registros:
+            print(r)
     else:
-        # entra aqui se não encontrou em nenhum dia
-        print(f"nenhuma cotacão encontrada para {moeda}")
+        print("nenhum dado encontrado")
 
-# salva no CSV se tiver dados
-if registros:
-    with open(ARQUIVO, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["moeda", "data", "compra", "venda"], delimiter=";")
-        writer.writeheader()
-        writer.writerows(registros)
+except Exception as e:
+    print("erro:", e)
 
-    print("arquivo criado")
-
-    # mostra no terminal
-    for r in registros:
-        print(r)
-else:
-    print("nada encontrado.")
+finally:
+    driver.quit()
