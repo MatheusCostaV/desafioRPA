@@ -8,10 +8,7 @@ Script simples em Python pra buscar a cotação do dólar (USD) e euro (EUR) usa
 -Mostra no terminal
 
 #Como rodar:
--Instala a lib:
--pip install requests
---depois executar o python automacao.py
-
+ rode o executavel
 
 #Estrutura
 CODE/
@@ -21,3 +18,6 @@ README.md
 
 Observação
 os dados vêm da API oficial do Banco Central (PTAX).
+
+
+ARQUIVO EXECUTAVEL LOCALIZADO EM C:\Users\Matheus De Assis\dist
