@@ -20,4 +20,4 @@ Observação
 os dados vêm da API oficial do Banco Central (PTAX).
 
 
-ARQUIVO EXECUTAVEL LOCALIZADO EM C:\Users\Matheus De Assis\dist
+ARQUIVO EXECUTAVEL 
