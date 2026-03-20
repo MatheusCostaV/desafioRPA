@@ -1,25 +1,36 @@
 import csv
 import time
 import requests
+import logging
 from datetime import datetime, timedelta
 from selenium import webdriver
 
+# Configuração do arquivo de log de erros
+logging.basicConfig(
+    filename="erros.log",
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 ARQUIVO = "cotacoes.csv"
-
-# abre o navegador
-driver = webdriver.Chrome()
-
 registros = []
+driver = None
 
 try:
-    # abre os sites pedidos (so pra cumprir a parte de usar o selenium, ja que a API do BC é mais facil)
+    # Abre o navegador
+    driver = webdriver.Chrome()
+    
+    # Maximiza a janela (deixa em tela cheia)
+    driver.maximize_window()
+
+    # Abre os sites pedidos (apenas para cumprir a exigência do Selenium)
     driver.get("https://www.bcb.gov.br/estabilidadefinanceira/fechamentodolar")
     time.sleep(2)
 
     driver.get("https://www.bcb.gov.br")
     time.sleep(2)
 
-    # tenta pegar a cotação voltando até 7 dias
+    # Tenta pegar a cotação do Dólar voltando até 7 dias
     for i in range(7):
         data = datetime.today() - timedelta(days=i)
         data_api = data.strftime("%m-%d-%Y")
@@ -38,9 +49,9 @@ try:
                 "compra": ultimo["cotacaoCompra"],
                 "venda": ultimo["cotacaoVenda"]
             })
-            break  # achou, parou
+            break  # Achou a cotação, sai do loop
 
-    # mesma loogica para o euro
+    # Mesma lógica para o Euro
     for i in range(7):
         data = datetime.today() - timedelta(days=i)
         data_api = data.strftime("%m-%d-%Y")
@@ -59,9 +70,9 @@ try:
                 "compra": ultimo["cotacaoCompra"],
                 "venda": ultimo["cotacaoVenda"]
             })
-            break
+            break # Achou a cotação, sai do loop
 
-    # salva no csv
+    # Salva os dados no arquivo CSV
     if registros:
         with open(ARQUIVO, "w", newline="", encoding="utf-8") as f:
             campos = ["data", "moeda", "compra", "venda"]
@@ -69,15 +80,19 @@ try:
             writer.writeheader()
             writer.writerows(registros)
 
-        print("arquivo criado\n")
+        print("Arquivo CSV criado com sucesso!\n")
 
         for r in registros:
             print(r)
     else:
-        print("nenhum dado encontrado")
+        print("Nenhum dado encontrado nas APIs do Banco Central.")
 
 except Exception as e:
-    print("erro:", e)
+    # Registra o erro completo no arquivo erros.log
+    logging.error("Erro durante a execução do script", exc_info=True)
+    print("Ocorreu um erro! Verifique o arquivo 'erros.log' para mais detalhes.")
 
 finally:
-    driver.quit()
+    # Garante que o navegador será fechado no final, dando erro ou não
+    if driver:
+        driver.quit()
